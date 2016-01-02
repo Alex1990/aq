@@ -1,0 +1,314 @@
+#!/bin/bash
+
+VERSION="0.1.0"
+SCR_COLS=$(tput cols)
+SCR_LINES=$(tput lines)
+
+display_version() {
+  echo $VERSION && exit 0
+}
+
+display_help() {
+  cat <<-EOF
+
+  Usage: ascii-table [options] [character]
+
+  Options:
+
+    -r, --range   Specify the range of the output characters
+    -h, --help    Display help information
+    -v, --version Output current version of ascii-table
+
+EOF
+
+  exit 0;
+}
+
+DIGIT=48:57
+UPPER=65:90
+LOWER=97:122
+ALPHA="$UPPER,$LOWER"
+ALNUM="$DIGIT,$ALPHA"
+PUNCT=33:47,58:64,91:96,123:126
+SPACE=9:13,32
+BLANK=9,32
+GRAPH="$ALNUM,$PUNCT"
+PRINT="$GRAPH,32"
+CNTL=0:31,127
+ASCII=0:127
+
+read -r -d "" ASCII_DATA <<!ASCII!
+000, 000, 00, NUL, '\0'
+001, 001, 01, SOH, (start of heading)
+002, 002, 02, STX, (start of text)
+003, 003, 03, ETX, (end of text)
+004, 004, 04, EOT, (end of transmission)
+005, 005, 05, ENQ, (enquiry)
+006, 006, 06, ACK, (acknowledge)
+007, 007, 07, BEL, '\a' (bell)
+010, 008, 08, BS, '\b' (backspace)
+011, 009, 09, HT, '\t' (horizontal tab)
+012, 010, 0A, LF, '\n' (new line)
+013, 011, 0B, VT, '\v' (vertical tab)
+014, 012, 0C, FF, '\f' (form feed)
+015, 013, 0D, CR, '\r' (carriage ret)
+016, 014, 0E, SO, (shift out)
+017, 015, 0F, SI, (shift in)
+020, 016, 10, DLE, (data link escape)
+021, 017, 11, DC1, (device control 1)
+022, 018, 12, DC2, (device control 2)
+023, 019, 13, DC3, (device control 3)
+024, 020, 14, DC4, (device control 4)
+025, 021, 15, NAK, (negative ack.)
+026, 022, 16, SYN, (synchronous idle)
+027, 023, 17, ETB, (end of trans. blk)
+030, 024, 18, CAN, (cancel)
+031, 025, 19, EM, (end of medium)
+032, 026, 1A, SUB, (substitute)
+033, 027, 1B, ESC, (escape)
+034, 028, 1C, FS, (file separator)
+035, 029, 1D, GS, (group separator)
+036, 030, 1E, RS, (record separator)
+037, 031, 1F, US, (unit separator)
+040, 032, 20, SPACE
+041, 033, 21, !
+042, 034, 22, "
+043, 035, 23, #
+044, 036, 24, $
+045, 037, 25, %
+046, 038, 26, &
+047, 039, 27, '
+050, 040, 28, (
+051, 041, 29, )
+052, 042, 2A, *
+053, 043, 2B, +
+054, 044, 2C, ,
+055, 045, 2D, -
+056, 046, 2E, .
+057, 047, 2F, /
+060, 048, 30, 0
+061, 049, 31, 1
+062, 050, 32, 2
+063, 051, 33, 3
+064, 052, 34, 4
+065, 053, 35, 5
+066, 054, 36, 6
+067, 055, 37, 7
+070, 056, 38, 8
+071, 057, 39, 9
+072, 058, 3A, :
+073, 059, 3B, ;
+074, 060, 3C, <
+075, 061, 3D, =
+076, 062, 3E, >
+077, 063, 3F, ?
+100, 064, 40, @
+101, 065, 41, A
+102, 066, 42, B
+103, 067, 43, C
+104, 068, 44, D
+105, 069, 45, E
+106, 070, 46, F
+107, 071, 47, G
+110, 072, 48, H
+111, 073, 49, I
+112, 074, 4A, J
+113, 075, 4B, K
+114, 076, 4C, L
+115, 077, 4D, M
+116, 078, 4E, N
+117, 079, 4F, O
+120, 080, 50, P
+121, 081, 51, Q
+122, 082, 52, R
+123, 083, 53, S
+124, 084, 54, T
+125, 085, 55, U
+126, 086, 56, V
+127, 087, 57, W
+130, 088, 58, X
+131, 089, 59, Y
+132, 090, 5A, Z
+133, 091, 5B, [
+134, 092, 5C, \, '\\\\'
+135, 093, 5D, ]
+136, 094, 5E, ^
+137, 095, 5F, _
+140, 096, 60, \`
+141, 097, 61, a
+142, 098, 62, b
+143, 099, 63, c
+144, 100, 64, d
+145, 101, 65, e
+146, 102, 66, f
+147, 103, 67, g
+150, 104, 68, h
+151, 105, 69, i
+152, 106, 6A, j
+153, 107, 6B, k
+154, 108, 6C, l
+155, 109, 6D, m
+156, 110, 6E, n
+157, 111, 6F, o
+160, 112, 70, p
+161, 113, 71, q
+162, 114, 72, r
+163, 115, 73, s
+164, 116, 74, t
+165, 117, 75, u
+166, 118, 76, v
+167, 119, 77, w
+170, 120, 78, x
+171, 121, 79, y
+172, 122, 7A, z
+173, 123, 7B, {
+174, 124, 7C, |
+175, 125, 7D, }
+176, 126, 7E, ~
+177, 127, 7F, DEL
+!ASCII!
+
+range="ASCII"
+
+set_range() {
+  local range_arg=${1-ASCII}
+  range=${range_arg^^}
+}
+
+TABLE_HEADER="Oct  Dec  Hex Char    "
+
+display_column() {
+  local data="$1"
+  local left_lines
+  local right_lines
+  local left_line_num
+  local right_line_num
+  local total_line_num=$(echo "$data" | wc -l)
+  local max_line_length=$(echo "$data" | wc -L)
+
+  if [[ $(($max_line_length * 2)) -gt $SCR_COLS ]]; then
+    echo "$TABLE_HEADER"
+    echo "$data"
+  else
+    left_line_num=$(($total_line_num / 2))
+
+    if [[ $(($total_line_num % 2)) -eq 1 ]]; then
+      left_line_num=$(($left_line_num + 1));
+    fi
+
+    right_line_num=$(($total_line_num - $left_line_num))
+
+    left_lines=$(echo "$data" | head -n "$left_line_num")
+    right_lines=$(echo "$data" | tail -n "$right_line_num")
+
+    readarray -t left_lines <<<"$left_lines"
+    readarray -t right_lines <<<"$right_lines"
+
+    if [[ $(($max_line_length)) -lt ${#TABLE_HEADER} ]]; then
+      max_line_length=${#TABLE_HEADER}
+    fi
+
+    printf "%-$(($max_line_length+4))s%s\n" "$TABLE_HEADER" "$TABLE_HEADER"
+
+    printf "%-$(($max_line_length+4))s" | tr ' ' = 
+    printf "%-${#TABLE_HEADER}s\n" | tr ' ' = 
+
+    for i in "${!left_lines[@]}"; do
+      printf "%-$(($max_line_length+4))s" "${left_lines[$i]}"
+      printf "%s\n" "${right_lines[$i]}"
+    done
+  fi
+
+  exit 0
+}
+
+select_chars() {
+  local awk_code
+  local range_str
+  local range_arr
+  local is_first_loop=1
+  local old_lc_ctype=$LC_CTYPE
+  eval range_str='$'$range
+
+  if [[ -z "$range_str" ]]; then
+    eval range_str="$ASCII"
+  fi
+
+  if [[ -n "$1" ]]; then
+    LC_CTYPE=C
+    range_str=$(printf '%d' "'$1'")
+    LC_CTYPE="$old_lc_ctype"
+  fi
+
+  range_arr=(${range_str//,/ })
+
+  awk_code="{ if ("
+
+  for item in "${range_arr[@]}"; do
+    if [[ $is_first_loop -ne 1 ]]; then
+      awk_code+=" || "
+    else
+      is_first_loop=0
+    fi
+
+    if [[ $(expr index $item :) -ne 0 ]]; then
+      local pair=(${item//:/ })
+      awk_code+="NR >= ${pair[0]} + 1 && NR <= ${pair[1]} + 1"
+    else
+      awk_code+="NR == $item + 1"
+    fi
+  done
+
+  awk_code+=") { "
+  awk_code+='printf "%s  %s  %s  %s", $1, $2, $3, $4; '
+  awk_code+='if ( $5 != "" ) { '
+  awk_code+='printf "  %s", $5; '
+  awk_code+="}"
+  awk_code+='printf "\n"; '
+  awk_code+="} }"
+
+  echo -E "$ASCII_DATA" | awk -F', ' "$awk_code"
+
+  exit 0
+}
+
+print_table() {
+  local data=$(select_chars)
+  display_column "$data"
+  exit 0
+}
+
+print_codes() {
+  echo "Oct  Dec Hex Char"
+  select_chars "$1"
+  exit 0
+}
+
+if [[ $# -eq 0 ]]; then
+  set_range
+  print_table
+else
+  while [[ $# -ne 0 ]]; do
+    case $1 in
+      -v|--version)
+        display_version
+        ;;
+      -h|--help)
+        display_help
+        ;;
+      -r|--range)
+        set_range $2
+        print_table
+        ;;
+      ?)
+        set_range
+        print_codes $1
+        ;;
+      *)
+        print_table
+        ;;
+    esac
+  done
+fi
+
+exit 0
