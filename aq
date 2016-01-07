@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.1.0"
+VERSION="0.1.1"
 SCR_COLS=$(tput cols)
 SCR_LINES=$(tput lines)
 
@@ -172,7 +172,7 @@ range="ASCII"
 
 set_range() {
   local range_arg=${1-ASCII}
-  range=${range_arg^^}
+  range=$(echo "$range_arg" | tr '[:lower:]' '[:upper:]')
 }
 
 TABLE_HEADER="Oct  Dec  Hex Char    "
@@ -184,7 +184,7 @@ display_column() {
   local left_line_num
   local right_line_num
   local total_line_num=$(echo "$data" | wc -l)
-  local max_line_length=$(echo "$data" | wc -L)
+  local max_line_length=$(echo "$data" | awk '{ if (length($0) > max) {max = length($0); maxline = $0} } END { print maxline }' | wc -c)
 
   if [[ $(($max_line_length * 2)) -gt $SCR_COLS ]]; then
     echo "$TABLE_HEADER"
@@ -201,8 +201,8 @@ display_column() {
     left_lines=$(echo "$data" | head -n "$left_line_num")
     right_lines=$(echo "$data" | tail -n "$right_line_num")
 
-    readarray -t left_lines <<<"$left_lines"
-    readarray -t right_lines <<<"$right_lines"
+    mapfile -t left_lines <<<"$left_lines"
+    mapfile -t right_lines <<<"$right_lines"
 
     if [[ $(($max_line_length)) -lt ${#TABLE_HEADER} ]]; then
       max_line_length=${#TABLE_HEADER}
@@ -245,13 +245,13 @@ select_chars() {
   awk_code="{ if ("
 
   for item in "${range_arr[@]}"; do
-    if [[ $is_first_loop -ne 1 ]]; then
+    if [[ "$is_first_loop" -ne 1 ]]; then
       awk_code+=" || "
     else
       is_first_loop=0
     fi
 
-    if [[ $(expr index $item :) -ne 0 ]]; then
+    if [[ "$item" == *":"* ]]; then
       local pair=(${item//:/ })
       awk_code+="NR >= ${pair[0]} + 1 && NR <= ${pair[1]} + 1"
     else
@@ -284,12 +284,12 @@ print_codes() {
   exit 0
 }
 
-if [[ $# -eq 0 ]]; then
+if [[ "$#" -eq 0 ]]; then
   set_range
   print_table
 else
-  while [[ $# -ne 0 ]]; do
-    case $1 in
+  while [[ "$#" -ne 0 ]]; do
+    case "$1" in
       -v|--version)
         display_version
         ;;
@@ -297,12 +297,12 @@ else
         display_help
         ;;
       -r|--range)
-        set_range $2
+        set_range "$2"
         print_table
         ;;
       ?)
         set_range
-        print_codes $1
+        print_codes "$1"
         ;;
       *)
         print_table
